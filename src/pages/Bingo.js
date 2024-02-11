@@ -243,7 +243,7 @@ function useBingo() {
       setBusy(false)
       setCard(current => {
         const state = current.map(c => c.number !== number ? c : {...c, validating: false, validated: !result.error})
-        BingoStore.set(JSON.stringify(state))
+        BingoStore.set(state)
         return state
       })
       if (result.err) toast({
@@ -262,13 +262,13 @@ function useBingo() {
   const [stateConfirm, setConfirm] = React.useState('')
   const {isOpen, onOpen, onClose} = useDisclosure()
 
-  const onNew = () => {
-    setConfirm('New')
+  const onClear = () => {
+    setConfirm('Clear')
     onOpen()
   }
 
-  const onClear = () => {
-    setConfirm('Clear')
+  const onNew = () => {
+    setConfirm('New')
     onOpen()
   }
 
@@ -285,12 +285,12 @@ function useBingo() {
 
   //---
 
-  return {statePortrait, stateBusy, stateCard, onValidate, onNew, onClear,
+  return {statePortrait, stateBusy, stateCard, onValidate, onClear, onNew,
     stateConfirm, isOpen, onClose, onOK}
 }
 
 export default function Bingo() {
-  const {statePortrait, stateBusy, stateCard, onValidate, onNew, onClear,
+  const {statePortrait, stateBusy, stateCard, onValidate, onClear, onNew,
     stateConfirm, isOpen, onClose, onOK} = useBingo()
 
   const onBingo = () => {} //to-do
@@ -299,8 +299,8 @@ export default function Bingo() {
     <Flex direction='column' h='100vh' p='3' fontSize={statePortrait ? '2vmin' : '3vmin'} userSelect='none'>
       <BingoCard stateBusy={stateBusy} stateCard={stateCard} onValidate={onValidate}/>
       <Grid mt='2' gridTemplateColumns='1fr 1fr 1fr' gap='3'>
-        <Button colorScheme={Color.Button.schemeNew} onClick={onNew} isDisabled={stateBusy}>New Card</Button>
         <Button colorScheme={Color.Button.schemeClear} onClick={onClear} isDisabled={stateBusy}>Clear</Button>
+        <Button colorScheme={Color.Button.schemeNew} onClick={onNew} isDisabled={stateBusy}>New Card</Button>
         <Button colorScheme={Color.Button.schemeBingo} onClick={onBingo} isDisabled={stateBusy}>Bingo</Button>
       </Grid>
     </Flex>
