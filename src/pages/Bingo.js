@@ -1,5 +1,9 @@
 import React from 'react';
-import { Button, Card, CardBody, Flex, Grid, GridItem, Text } from '@chakra-ui/react';
+import {
+  AlertDialog, AlertDialogBody, AlertDialogCloseButton, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogOverlay,
+  Button, Card, CardBody, Flex, Grid, GridItem, Text,
+  useDisclosure,
+} from '@chakra-ui/react';
 
 
 //---
@@ -167,6 +171,30 @@ function BingoCard({stateBusy, stateCard, onClick}) {
 
 //---
 
+function BingoConfirm({isOpen, onClose, stateConfirm, onOK}) {
+  const refCancel = React.useRef()
+
+  return (
+    <AlertDialog isOpen={isOpen} leastDestructiveRef={refCancel} onClose={onClose} isCentered>
+      <AlertDialogOverlay>
+        <AlertDialogContent>
+          <AlertDialogHeader fontSize='lg' fontWeight='bold'>
+            {stateConfirm} Card
+          </AlertDialogHeader>
+          <AlertDialogCloseButton />
+          <AlertDialogBody>
+            Are you sure? You can't undo this action afterwards.
+          </AlertDialogBody>
+          <AlertDialogFooter>
+            <Button ref={refCancel} onClick={onClose}>Cancel</Button>
+            <Button colorScheme='red' onClick={onOK} ml={3}>{stateConfirm}</Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialogOverlay>
+    </AlertDialog>)
+}
+//---
+
 const isPortrait = () => window.screen.orientation.type.startsWith('portrait')
 
 function cardNew() {
@@ -190,8 +218,6 @@ function cardLoad() {
 
 function useBingo() {
   const [statePortrait, setPortrait] = React.useState(isPortrait)
-  const [stateBusy, setBusy] = React.useState(false)
-  const [stateCard, setCard] = React.useState(() => cardLoad() ?? DefaultStateCard) //?? cardNew()
 
   React.useEffect(() => {
     const onOrientationChange = () => setPortrait(isPortrait())
@@ -203,13 +229,11 @@ function useBingo() {
     }
   }, [])
 
-  const onNew = () => setCard(cardNew())
 
-  function onClear() {
-    //to-do: alert
-    BingoStore.del()
-    setCard(DefaultStateCard)
-  }
+  //---
+
+  const [stateBusy, setBusy] = React.useState(false)
+  const [stateCard, setCard] = React.useState(() => cardLoad() ?? DefaultStateCard) //?? cardNew()
 
   async function onClick(event, number) {
     setBusy(true)
@@ -226,15 +250,46 @@ function useBingo() {
     })
   }
 
-  return {statePortrait, stateBusy, stateCard, onClick, onNew, onClear}
+
+  //---
+
+  const [stateConfirm, setConfirm] = React.useState('')
+  const {isOpen, onOpen, onClose} = useDisclosure()
+
+  const onNew = () => {
+    setConfirm('New')
+    onOpen()
+  }
+
+  const onClear = () => {
+    setConfirm('Clear')
+    onOpen()
+  }
+
+  const onOK = () => {
+    if (stateConfirm === 'New')
+      setCard(cardNew())
+    else {
+      BingoStore.del()
+      setCard(DefaultStateCard)
+    }
+    onClose()
+  }
+
+
+  //---
+
+  return {statePortrait, stateBusy, stateCard, onClick, onNew, onClear,
+    stateConfirm, isOpen, onClose, onOK}
 }
 
 export default function Bingo() {
-  const {statePortrait, stateBusy, stateCard, onClick, onNew, onClear} = useBingo()
+  const {statePortrait, stateBusy, stateCard, onClick, onNew, onClear,
+    stateConfirm, isOpen, onClose, onOK} = useBingo()
 
   const onBingo = () => {} //to-do
 
-  return (
+  return <>
     <Flex direction='column' h='100vh' p='3' fontSize={statePortrait ? '2vmin' : '3vmin'} userSelect='none'>
       <BingoCard stateBusy={stateBusy} stateCard={stateCard} onClick={onClick}/>
       <Grid mt='2' gridTemplateColumns='1fr 1fr 1fr' gap='3'>
@@ -242,5 +297,8 @@ export default function Bingo() {
         <Button colorScheme={Color.Button.schemeClear} onClick={onClear} isDisabled={stateBusy}>Clear</Button>
         <Button colorScheme={Color.Button.schemeBingo} onClick={onBingo} isDisabled={stateBusy}>Bingo</Button>
       </Grid>
-    </Flex>)
+    </Flex>
+
+    <BingoConfirm stateConfirm={stateConfirm} isOpen={isOpen} onClose={onClose} onOK={onOK}/>
+  </>
 }

@@ -1,6 +1,6 @@
 # React.js
 
-Playground (React.js, Chakra.ui)
+Playground (React.js 18, Chakra.ui 2)
 
 
 <details><summary>
