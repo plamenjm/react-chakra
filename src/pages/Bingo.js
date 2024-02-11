@@ -2,7 +2,7 @@ import React from 'react';
 import {
   AlertDialog, AlertDialogBody, AlertDialogCloseButton, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogOverlay,
   Button, Card, CardBody, Flex, Grid, GridItem, Text,
-  useDisclosure,
+  useDisclosure, useToast,
 } from '@chakra-ui/react';
 
 
@@ -86,8 +86,7 @@ const BingoApi = {
       })
       let json = await response.json()
       if (Config.Bingo.TestLogResponse) console.log('response', json)
-      json = JSON.parse(json.data)
-      return json
+      return {response: JSON.parse(json.data)}
     } catch (ex) {
       if (Config.Bingo.LogError) console.error(ex)
       return {error: ex.message}
@@ -127,10 +126,10 @@ function BingoHeader() {
 
 //---
 
-function BingoCellButton({cell, onClick, stateBusy}) {
+function BingoCellButton({cell, onValidate, stateBusy}) {
   return (
     <Button h='100%' w='100%' fontSize='3em'
-            onClick={!cell ? undefined : (ev) => onClick(ev, cell.number)}
+            onClick={!cell ? undefined : (ev) => onValidate(ev, cell.number)}
             isLoading={stateBusy || cell?.validating}
             colorScheme={!cell?.validating ? undefined : Color.Cell.schemeValidating}
             isDisabled={!cell || cell.validated}
@@ -146,7 +145,7 @@ function BingoCellButton({cell, onClick, stateBusy}) {
 
 //---
 
-function BingoCard({stateBusy, stateCard, onClick}) {
+function BingoCard({stateBusy, stateCard, onValidate}) {
   return (
     <Card h='100%' bg={Color.Card.bg} borderRadius='20'>
       <CardBody>
@@ -161,7 +160,7 @@ function BingoCard({stateBusy, stateCard, onClick}) {
             </GridItem>
 
             : <GridItem key={idx} bg={Color.Cell.bg}>
-              <BingoCellButton cell={cell} onClick={onClick} stateBusy={stateBusy}/>
+              <BingoCellButton cell={cell} onValidate={onValidate} stateBusy={stateBusy}/>
             </GridItem>)}
         </Grid>
       </CardBody>
@@ -209,7 +208,7 @@ function cardLoad() {
     const data = BingoStore.get()
     if (!data) return
     const state = JSON.parse(data)
-    if (!state) return
+    if (!state.map) return
     return state.map(cell => ({...cell, validating: false}))
   } catch (ex) {
     if (Config.Bingo.LogError) console.error(ex)
@@ -234,18 +233,25 @@ function useBingo() {
 
   const [stateBusy, setBusy] = React.useState(false)
   const [stateCard, setCard] = React.useState(() => cardLoad() ?? DefaultStateCard) //?? cardNew()
+  const toast = useToast()
 
-  async function onClick(event, number) {
+  async function onValidate(event, number) {
     setBusy(true)
     setCard(state => state.map(c => c.number !== number ? c : {...c, validating: true}))
     const last = stateCard.filter((c, idx) => !Config.Bingo.CardFree.includes(idx) && c.validated).length === Config.Bingo.cardSize - 2
     BingoApi.validateNumber(number, last).then(result => {
-      //to-do: error toast
       setBusy(false)
       setCard(current => {
-        const state = current.map(c => c.number !== number ? c : {...c, validating: false, validated: !!result})
+        const state = current.map(c => c.number !== number ? c : {...c, validating: false, validated: !result.error})
         BingoStore.set(JSON.stringify(state))
         return state
+      })
+      if (result.err) toast({
+        title: 'Validation failed.',
+        description: result.error,
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
       })
     })
   }
@@ -279,19 +285,19 @@ function useBingo() {
 
   //---
 
-  return {statePortrait, stateBusy, stateCard, onClick, onNew, onClear,
+  return {statePortrait, stateBusy, stateCard, onValidate, onNew, onClear,
     stateConfirm, isOpen, onClose, onOK}
 }
 
 export default function Bingo() {
-  const {statePortrait, stateBusy, stateCard, onClick, onNew, onClear,
+  const {statePortrait, stateBusy, stateCard, onValidate, onNew, onClear,
     stateConfirm, isOpen, onClose, onOK} = useBingo()
 
   const onBingo = () => {} //to-do
 
   return <>
     <Flex direction='column' h='100vh' p='3' fontSize={statePortrait ? '2vmin' : '3vmin'} userSelect='none'>
-      <BingoCard stateBusy={stateBusy} stateCard={stateCard} onClick={onClick}/>
+      <BingoCard stateBusy={stateBusy} stateCard={stateCard} onValidate={onValidate}/>
       <Grid mt='2' gridTemplateColumns='1fr 1fr 1fr' gap='3'>
         <Button colorScheme={Color.Button.schemeNew} onClick={onNew} isDisabled={stateBusy}>New Card</Button>
         <Button colorScheme={Color.Button.schemeClear} onClick={onClear} isDisabled={stateBusy}>Clear</Button>
